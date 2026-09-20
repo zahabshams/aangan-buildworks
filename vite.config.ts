@@ -1,3 +1,4 @@
+import { copyFileSync } from "node:fs";
 import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
@@ -119,8 +120,18 @@ function mockApi(): Plugin {
   };
 }
 
+function spaFallback(): Plugin {
+  return {
+    name: "spa-github-pages-fallback",
+    closeBundle() {
+      copyFileSync(path.resolve("dist/index.html"), path.resolve("dist/404.html"));
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), mockApi()],
+  base: process.env.GITHUB_PAGES === "true" ? "/aangan-buildworks/" : "/",
+  plugins: [react(), tailwindcss(), mockApi(), spaFallback()],
   resolve: {
     alias: [
       { find: "@", replacement: path.resolve(__dirname, "./src") },

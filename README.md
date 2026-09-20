@@ -11,6 +11,8 @@ npm run dev
 
 Open http://localhost:5173
 
+Live site (GitHub Pages): https://zahabshams.github.io/aangan-buildworks/
+
 Admin lead desk: `/admin/login`  
 Email: `admin@aanganbuildworks.example`  
 Password: `admin123`
