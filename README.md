@@ -16,3 +16,5 @@ Live site (GitHub Pages): https://zahabshams.github.io/aangan-buildworks/
 Admin lead desk: `/admin/login`  
 Email: `admin@aanganbuildworks.example`  
 Password: `admin123`
+
+On the live GitHub Pages site, home briefs are saved in the browser (localStorage) so the form works without a server. Open `/admin/login` in the same browser to see them. This is not a shared CRM — other visitors cannot see your leads.
