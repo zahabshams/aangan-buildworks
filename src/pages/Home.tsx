@@ -31,6 +31,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { toast } from "sonner";
 
+import { BuildLifecycle } from "@/components/BuildLifecycle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -349,6 +350,7 @@ export default function Home() {
     </header>
 
     <main id="top">
+      <BuildLifecycle />
       <section className="relative overflow-hidden bg-[#1b1b1b] px-4 py-10 text-white sm:px-8 sm:py-16 lg:px-12 lg:py-20" data-testid="hero-section">
         <div className="mx-auto grid max-w-[1400px] items-end gap-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-20">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7 }} className="relative z-10 pb-4 lg:pb-12"><p className="mb-7 flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.25em] text-[#d0ad92]" data-testid="hero-eyebrow"><span className="h-px w-8 bg-[#d0ad92]" /> Design + Build in Bihar</p><h1 className="max-w-2xl text-5xl font-medium leading-[0.95] tracking-[-0.055em] text-white sm:text-7xl lg:text-[84px]" data-testid="hero-title">Build the home you’ve been planning.</h1><p className="mt-7 max-w-md text-base leading-7 text-white/70 sm:text-lg" data-testid="hero-subtitle">Professional design, construction and interiors for landowners across Bihar.</p><div className="mt-9 flex flex-col gap-3 sm:flex-row"><button type="button" onClick={scrollToFunnel} className="group flex h-12 items-center justify-center gap-3 bg-[#a38068] px-5 text-sm font-bold text-white hover:-translate-y-0.5 hover:bg-[#8c6b55]" data-testid="hero-plan-my-home-button">Plan My Home <ArrowRight size={17} className="group-hover:translate-x-1" /></button><a href="#homes" className="flex h-12 items-center justify-center gap-3 border border-white/30 px-5 text-sm font-bold text-white hover:border-white" data-testid="hero-explore-homes-link">Explore Our Homes <ArrowDownRight size={17} /></a></div><p className="mt-7 text-xs text-white/50" data-testid="hero-trust-line">From concept to handover — one professionally managed process.</p></motion.div>
