@@ -47,14 +47,21 @@ const OFFERINGS = [
   { title: "Ground + floors", price: "2,800", unit: "per sq ft" },
 ] as const;
 
-const STEP_MS = 2600;
-const OFFER_MS = 3200;
+const STEP_MS = 6400;
+const FADE_MS = 1200;
+const OFFER_MS = 5600;
+const OFFER_FADE_MS = 500;
 const SWIPE_PX = 40;
 
 export function BuildLifecycle() {
   const [stage, setStage] = useState(0);
   const [paused, setPaused] = useState(false);
   const [offer, setOffer] = useState(0);
+  const [offerShown, setOfferShown] = useState(0);
+  const [offerOpacity, setOfferOpacity] = useState(1);
+  const [leaving, setLeaving] = useState<number | null>(null);
+  const [incomingOpacity, setIncomingOpacity] = useState(1);
+  const displayed = useRef(0);
   const dragStart = useRef<number | null>(null);
 
   useEffect(() => {
@@ -66,7 +73,7 @@ export function BuildLifecycle() {
 
   useEffect(() => {
     if (paused || stage >= STAGES.length - 1) return;
-    const next = window.setTimeout(() => setStage((current) => current + 1), STEP_MS);
+    const next = window.setTimeout(() => show(stage + 1), STEP_MS);
     return () => window.clearTimeout(next);
   }, [stage, paused]);
 
@@ -75,9 +82,34 @@ export function BuildLifecycle() {
     return () => window.clearTimeout(next);
   }, [offer]);
 
-  function show(index: number) {
-    setPaused(true);
-    setStage(Math.min(STAGES.length - 1, Math.max(0, index)));
+  useEffect(() => {
+    if (offer === offerShown) return;
+    setOfferOpacity(0);
+    const swap = window.setTimeout(() => {
+      setOfferShown(offer);
+      setOfferOpacity(1);
+    }, OFFER_FADE_MS);
+    return () => window.clearTimeout(swap);
+  }, [offer, offerShown]);
+
+  useEffect(() => {
+    if (leaving == null) return;
+    const frame = window.requestAnimationFrame(() => setIncomingOpacity(1));
+    const done = window.setTimeout(() => setLeaving(null), FADE_MS + 40);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(done);
+    };
+  }, [leaving]);
+
+  function show(index: number, pause = false) {
+    const next = Math.min(STAGES.length - 1, Math.max(0, index));
+    if (next === displayed.current) return;
+    setLeaving(displayed.current);
+    setIncomingOpacity(0);
+    displayed.current = next;
+    if (pause) setPaused(true);
+    setStage(next);
   }
 
   function onPointerDown(event: PointerEvent<HTMLDivElement>) {
@@ -89,24 +121,42 @@ export function BuildLifecycle() {
     if (dragStart.current == null) return;
     const delta = event.clientX - dragStart.current;
     dragStart.current = null;
-    if (delta <= -SWIPE_PX) show(stage + 1);
-    else if (delta >= SWIPE_PX) show(stage - 1);
+    if (delta <= -SWIPE_PX) show(stage + 1, true);
+    else if (delta >= SWIPE_PX) show(stage - 1, true);
   }
 
   const current = STAGES[stage];
-  const offering = OFFERINGS[offer];
+  const offering = OFFERINGS[offerShown];
+  const baseStage = STAGES[leaving ?? stage];
 
   return (
     <section className="bg-[#111] text-white" aria-label="Lifecycle of a new house" data-testid="build-lifecycle">
       <div className="relative" onPointerDown={onPointerDown} onPointerUp={onPointerUp}>
         <img
-          key={current.image}
-          src={current.image}
-          alt={current.alt}
+          src={baseStage.image}
+          alt={leaving == null ? current.alt : ""}
+          aria-hidden={leaving != null}
           className="block h-auto max-h-[70vh] w-full object-cover object-top"
           style={{ display: "block", width: "100%", height: "auto", maxHeight: "70vh", objectFit: "cover", objectPosition: "center top" }}
           fetchPriority="high"
         />
+        {leaving != null && (
+          <img
+            src={current.image}
+            alt={current.alt}
+            data-testid="lifecycle-incoming"
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              objectPosition: "center top",
+              opacity: incomingOpacity,
+              transition: `opacity ${FADE_MS}ms ease-in-out`,
+            }}
+          />
+        )}
         <div
           data-testid="lifecycle-offering"
           aria-live="polite"
@@ -119,6 +169,8 @@ export function BuildLifecycle() {
             background: "rgba(17,17,17,0.82)",
             color: "#fff",
             padding: "10px 12px",
+            opacity: offerOpacity,
+            transition: `opacity ${OFFER_FADE_MS}ms ease`,
           }}
         >
           <p style={{ margin: 0, fontSize: 10, fontWeight: 700, letterSpacing: "0.16em", textTransform: "uppercase", color: "#d0ad92" }}>
@@ -134,7 +186,7 @@ export function BuildLifecycle() {
           aria-label="Previous picture"
           data-testid="lifecycle-previous"
           disabled={stage === 0}
-          onClick={() => show(stage - 1)}
+          onClick={() => show(stage - 1, true)}
           className="absolute left-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center bg-black/55 text-white disabled:opacity-30"
         >
           <ChevronLeft size={22} />
@@ -144,7 +196,7 @@ export function BuildLifecycle() {
           aria-label="Next picture"
           data-testid="lifecycle-next"
           disabled={stage === STAGES.length - 1}
-          onClick={() => show(stage + 1)}
+          onClick={() => show(stage + 1, true)}
           className="absolute right-3 top-1/2 grid size-11 -translate-y-1/2 place-items-center bg-black/55 text-white disabled:opacity-30"
         >
           <ChevronRight size={22} />
@@ -168,8 +220,8 @@ export function BuildLifecycle() {
                 aria-selected={index === stage}
                 aria-label={item.label}
                 data-testid={`lifecycle-stage-${index + 1}`}
-                onClick={() => show(index)}
-                className={`h-2.5 ${index === stage ? "w-8 bg-[#d0ad92]" : "w-2.5 bg-white/30"}`}
+                onClick={() => show(index, true)}
+                className={`h-2.5 transition-[width] duration-700 ${index === stage ? "w-8 bg-[#d0ad92]" : "w-2.5 bg-white/30"}`}
               />
             ))}
           </div>
