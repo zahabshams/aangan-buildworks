@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowDownRight,
@@ -329,6 +329,9 @@ function ServiceCard({ icon: Icon, title, body, index }: { icon: LucideIcon; tit
 
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [wideNav, setWideNav] = useState(() =>
+    typeof window !== "undefined" && window.matchMedia("(min-width: 1280px)").matches,
+  );
   const [galleryFilter, setGalleryFilter] = useState("All");
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [plotArea, setPlotArea] = useState(1800);
@@ -339,11 +342,19 @@ export default function Home() {
   const filters = ["All", "Contemporary", "Modern-Traditional", "Front Elevation", "Living Spaces", "Kitchens", "Large Homes"];
   const visibleGallery = galleryFilter === "All" ? galleryItems : galleryItems.filter((item) => item.category === galleryFilter);
 
+  useEffect(() => {
+    const media = window.matchMedia("(min-width: 1280px)");
+    const sync = () => setWideNav(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
   return <div className="min-h-screen bg-[#fafafa] text-[#1a1a1a]" data-testid="home-page">
-    <header className="sticky top-0 z-50 border-b border-[#e5e1dd]/80 bg-[#fafafa]/85 backdrop-blur-xl" data-testid="site-header">
+    <header className="sticky top-0 z-50 border-b border-[#e5e1dd] bg-[#fafafa]" data-testid="site-header">
       <div className="mx-auto flex h-[72px] max-w-[1400px] items-center justify-between px-4 sm:px-8 lg:px-12">
         <a href="#top" className="flex items-center gap-3" data-testid="brand-home-link"><span className="grid size-9 place-items-center bg-[#1a1a1a] text-[#f4ede6]"><span className="font-heading text-xl">A</span></span><span className="text-sm font-bold tracking-[0.08em]" data-testid="brand-name">AANGAN <span className="font-normal text-[#a38068]">BUILDWORKS</span></span></a>
-        <nav className="hidden items-center gap-6 text-xs font-semibold text-[#555] xl:flex" data-testid="desktop-navigation"><a href="#services" className="hover:text-[#a38068]" data-testid="nav-services-link">Services</a><a href="#process" className="hover:text-[#a38068]" data-testid="nav-process-link">Our Process</a><a href="#homes" className="hover:text-[#a38068]" data-testid="nav-homes-link">Home Designs</a><a href="#construction" className="hover:text-[#a38068]" data-testid="nav-construction-link">Construction</a><a href="#resources" className="hover:text-[#a38068]" data-testid="nav-resources-link">Resources</a><Link to="/contact" className="hover:text-[#a38068]" data-testid="nav-contact-link">Contact</Link></nav>
+        {wideNav && <nav className="flex items-center gap-6 text-xs font-semibold text-[#555]" data-testid="desktop-navigation"><a href="#services" className="hover:text-[#a38068]" data-testid="nav-services-link">Services</a><a href="#process" className="hover:text-[#a38068]" data-testid="nav-process-link">Our Process</a><a href="#homes" className="hover:text-[#a38068]" data-testid="nav-homes-link">Home Designs</a><a href="#construction" className="hover:text-[#a38068]" data-testid="nav-construction-link">Construction</a><a href="#resources" className="hover:text-[#a38068]" data-testid="nav-resources-link">Resources</a><Link to="/contact" className="hover:text-[#a38068]" data-testid="nav-contact-link">Contact</Link></nav>}
         <div className="flex items-center gap-2"><button type="button" onClick={scrollToFunnel} className="hidden h-10 items-center gap-2 bg-[#a38068] px-4 text-xs font-bold text-white hover:-translate-y-0.5 hover:bg-[#8c6b55] sm:flex" data-testid="header-plan-my-home-button">Plan My Home <ArrowRight size={14} /></button><button type="button" onClick={() => setMenuOpen((current) => !current)} className="grid size-10 place-items-center border border-[#ded9d4] xl:hidden" aria-label="Toggle menu" data-testid="mobile-menu-button">{menuOpen ? <X size={18} /> : <Menu size={18} />}</button></div>
       </div>
       {menuOpen && <div className="border-t border-[#e5e1dd] bg-[#fafafa] px-4 py-5 xl:hidden" data-testid="mobile-navigation"><div className="grid gap-4 text-sm font-semibold"><a href="#services" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-services-link">Services</a><a href="#process" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-process-link">Our Process</a><a href="#homes" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-homes-link">Home Designs</a><Link to="/contact" onClick={() => setMenuOpen(false)} data-testid="mobile-nav-contact-link">Contact</Link><button type="button" onClick={() => { setMenuOpen(false); scrollToFunnel(); }} className="w-full bg-[#a38068] py-3 text-left px-4 text-white" data-testid="mobile-nav-plan-button">Plan My Home <ArrowRight size={15} className="inline" /></button></div></div>}
