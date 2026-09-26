@@ -1,4 +1,3 @@
-import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useState } from "react";
 
 const base = import.meta.env.BASE_URL;
@@ -45,8 +44,7 @@ const STAGES = [
 const STEP_MS = 2600;
 
 export function BuildLifecycle() {
-  const reduceMotion = useReducedMotion();
-  const [stage, setStage] = useState(reduceMotion ? STAGES.length - 1 : 0);
+  const [stage, setStage] = useState(0);
 
   useEffect(() => {
     for (const item of STAGES) {
@@ -56,10 +54,10 @@ export function BuildLifecycle() {
   }, []);
 
   useEffect(() => {
-    if (reduceMotion || stage >= STAGES.length - 1) return;
+    if (stage >= STAGES.length - 1) return;
     const next = window.setTimeout(() => setStage((current) => current + 1), STEP_MS);
     return () => window.clearTimeout(next);
-  }, [reduceMotion, stage]);
+  }, [stage]);
 
   const current = STAGES[stage];
 
@@ -72,21 +70,18 @@ export function BuildLifecycle() {
       {STAGES.map((item, index) => {
         const active = index === stage;
         return (
-          <motion.img
+          <img
             key={item.label}
             src={item.image}
             alt={active ? item.alt : ""}
             aria-hidden={!active}
-            className="absolute inset-0 size-full object-cover"
+            className={`absolute inset-0 size-full object-cover transition-opacity duration-1000 ${active ? "z-[2] opacity-100" : "z-[1] opacity-0"}`}
             fetchPriority={index === 0 ? "high" : "low"}
-            initial={false}
-            animate={{ opacity: active ? 1 : 0, scale: active ? 1.045 : 1 }}
-            transition={{ duration: reduceMotion ? 0 : 1.05, ease: [0.22, 1, 0.36, 1] }}
           />
         );
       })}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#111]/85 via-[#111]/15 to-[#111]/25" />
-      <div className="absolute inset-x-0 bottom-0 mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 pb-6 sm:px-8 sm:pb-8 lg:px-12">
+      <div className="pointer-events-none absolute inset-0 z-[3] bg-gradient-to-t from-[#111]/85 via-[#111]/15 to-[#111]/25" />
+      <div className="absolute inset-x-0 bottom-0 z-[4] mx-auto flex w-full max-w-[1400px] flex-col gap-4 px-4 pb-6 sm:px-8 sm:pb-8 lg:px-12">
         <div className="min-h-[88px]" aria-live="polite">
           <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-[#d0ad92]">From land to handover</p>
           <h2 className="mt-2 font-heading text-3xl font-medium leading-none sm:text-5xl">{current.label}</h2>
@@ -99,11 +94,9 @@ export function BuildLifecycle() {
             return (
               <li key={item.label}>
                 <div className="h-px bg-white/25">
-                  <motion.div
-                    className="h-px bg-[#d0ad92]"
-                    initial={false}
-                    animate={{ width: done || active ? "100%" : "0%" }}
-                    transition={{ duration: reduceMotion ? 0 : 0.8, ease: "easeOut" }}
+                  <div
+                    className="h-px bg-[#d0ad92] transition-[width] duration-700"
+                    style={{ width: done || active ? "100%" : "0%" }}
                   />
                 </div>
                 <p className={`mt-1.5 text-[10px] font-semibold tracking-wide ${active ? "text-white" : done ? "text-white/70" : "text-white/40"}`}>
