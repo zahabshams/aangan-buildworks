@@ -1,19 +1,20 @@
 import { ApiError } from "@/lib/api-error";
-import { browserRequest } from "@/lib/browser-api";
 
 export { ApiError };
 
 type JsonBody = unknown;
 
 async function request<T>(method: string, path: string, body?: JsonBody): Promise<T> {
-  // GitHub Pages is static: there is no /api server. Use the same in-browser store
-  // in production, and keep the Vite /api mock for local `npm run dev`.
-  if (import.meta.env.PROD) {
+  // GitHub Pages has no API. That build sets VITE_DATA=browser. Every other build
+  // talks to the file-backed /api so briefs are shared across browsers.
+  if (import.meta.env.VITE_DATA === "browser") {
+    const { browserRequest } = await import("@/lib/browser-api");
     return browserRequest<T>(method, path, body);
   }
 
   const res = await fetch(`/api${path}`, {
     method,
+    credentials: "include",
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
