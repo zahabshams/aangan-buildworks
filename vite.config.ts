@@ -3,90 +3,53 @@ import path from "node:path";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
-import { scoreLead } from "./src/lib/lead-engine.ts";
-import type { Lead, LeadCreate, LeadStage } from "./src/lib/types.ts";
+import type { Connect } from "vite";
+import type { ServerResponse } from "node:http";
+import { handleLeadApi } from "./server/lead-store.ts";
 
-function mockApi(): Plugin {
-  const leads: Lead[] = [];
-  const sessions = new Set<string>();
+function attachApi(middlewares: Connect.Server) {
+  middlewares.use("/api", async (req, res, next) => {
+    if (!req.url) return next();
+    const url = new URL(req.url, "http://localhost");
+    const method = req.method ?? "GET";
+    const cookie = String(req.headers.cookie ?? "");
+    const session = /aangan_session=([^;]+)/.exec(cookie)?.[1];
 
-  return {
-    name: "aangan-mock-api",
-    configureServer(server) {
-      server.middlewares.use("/api", async (req, res, next) => {
-        if (!req.url) return next();
-        const url = new URL(req.url, "http://localhost");
-        const method = req.method ?? "GET";
-        const cookie = String(req.headers.cookie ?? "");
-        const session = /aangan_session=([^;]+)/.exec(cookie)?.[1];
-        const authed = Boolean(session && sessions.has(session));
+    const send = (status: number, body?: unknown, setCookie?: string) => {
+      const response = res as ServerResponse;
+      response.statusCode = status;
+      response.setHeader("Content-Type", "application/json");
+      if (setCookie) response.setHeader("Set-Cookie", setCookie);
+      response.end(body === undefined ? "" : JSON.stringify(body));
+    };
 
-        const send = (status: number, body?: unknown, extraHeaders?: Record<string, string>) => {
-          res.statusCode = status;
-          Object.entries({ "Content-Type": "application/json", ...extraHeaders }).forEach(([k, v]) =>
-            res.setHeader(k, v),
-          );
-          res.end(body === undefined ? "" : JSON.stringify(body));
-        };
-
-        const readJson = async () => {
-          const chunks: Buffer[] = [];
-          for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-          const raw = Buffer.concat(chunks).toString("utf8");
-          return raw ? JSON.parse(raw) : {};
-        };
-
-        try {
-          if (method === "POST" && url.pathname === "/leads") {
-            const payload = (await readJson()) as LeadCreate;
-            const { score, tags } = scoreLead(payload);
-            const lead: Lead = {
-              ...payload,
-              id: crypto.randomUUID(),
-              lead_status: score >= 70 ? "High Intent" : "New Lead",
-              lead_score: score,
-              tags,
-              created_at: new Date().toISOString(),
-            };
-            leads.unshift(lead);
-            return send(200, lead);
-          }
-
-          if (method === "GET" && url.pathname === "/leads") {
-            if (!authed) return send(401, { detail: "Sign in required" });
-            return send(200, leads);
-          }
-
-          const patch = /^\/leads\/([^/]+)$/.exec(url.pathname);
-          if (method === "PATCH" && patch) {
-            if (!authed) return send(401, { detail: "Sign in required" });
-            const body = (await readJson()) as { lead_status: LeadStage };
-            const lead = leads.find((item) => item.id === patch[1]);
-            if (!lead) return send(404, { detail: "Lead not found" });
-            lead.lead_status = body.lead_status;
-            return send(200, lead);
-          }
-
-          if (method === "POST" && url.pathname === "/auth/login") {
-            const body = (await readJson()) as { email: string; password: string };
-            const valid =
-              body.email.toLowerCase() === "admin@aanganbuildworks.example" && body.password === "admin123";
-            if (!valid) return send(401, { detail: "Invalid credentials" });
-            const token = crypto.randomUUID();
-            sessions.add(token);
-            return send(200, { ok: true }, { "Set-Cookie": `aangan_session=${token}; Path=/; HttpOnly; SameSite=Lax` });
-          }
-
-          if (method === "POST" && url.pathname === "/auth/logout") {
-            if (session) sessions.delete(session);
-            return send(204, undefined, { "Set-Cookie": "aangan_session=; Path=/; Max-Age=0" });
-          }
-
-          return send(404, { detail: "Not found" });
-        } catch (error) {
-          return send(500, { detail: error instanceof Error ? error.message : "Server error" });
-        }
+    try {
+      const chunks: Buffer[] = [];
+      for await (const chunk of req) chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+      const raw = Buffer.concat(chunks).toString("utf8");
+      const body = raw ? JSON.parse(raw) : {};
+      const result = handleLeadApi({
+        method,
+        pathname: url.pathname,
+        body,
+        session,
+        ip: req.socket?.remoteAddress ?? "local",
       });
+      return send(result.status, result.body, result.cookie);
+    } catch (error) {
+      return send(500, { detail: error instanceof Error ? error.message : "Server error" });
+    }
+  });
+}
+
+function leadApi(): Plugin {
+  return {
+    name: "aangan-lead-api",
+    configureServer(server) {
+      attachApi(server.middlewares);
+    },
+    configurePreviewServer(server) {
+      attachApi(server.middlewares);
     },
   };
 }
@@ -102,7 +65,7 @@ function spaFallback(): Plugin {
 
 export default defineConfig({
   base: process.env.GITHUB_PAGES === "true" ? "/aangan-buildworks/" : "/",
-  plugins: [react(), tailwindcss(), mockApi(), spaFallback()],
+  plugins: [react(), tailwindcss(), leadApi(), spaFallback()],
   resolve: {
     alias: [
       { find: "@", replacement: path.resolve(__dirname, "./src") },
